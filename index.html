@@ -52,7 +52,7 @@ body.kuromi{
   --scrollbar-c:#7e22ce;
 }
 html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;min-height:100vh;overflow-x:hidden;transition:background 0.5s,color 0.5s}
+body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;overflow-x:hidden;transition:background 0.5s,color 0.5s}
 ::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--scrollbar-c);border-radius:2px}
 
 /* BG */
@@ -158,15 +158,15 @@ body.kuromi #lab-bg { opacity: 0; pointer-events: none; }
   animation: lab-breathe 12s ease-in-out infinite;
 }
 @keyframes lab-breathe {
-  0%,100% { transform: scale(1);     filter: brightness(0.28) saturate(0.7) hue-rotate(0deg); }
-  50%      { transform: scale(1.02); filter: brightness(0.32) saturate(0.8) hue-rotate(5deg); }
+  0%,100% { transform: scale(1);     filter: brightness(0.45) saturate(0.9); }
+  50%      { transform: scale(1.02); filter: brightness(0.52) saturate(1.0); }
 }
 #lab-bg-overlay {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 100% 100% at 50% 50%, rgba(4,8,15,0.15) 0%, rgba(4,8,15,0.82) 85%),
-    linear-gradient(180deg, rgba(4,8,15,0.5) 0%, rgba(4,8,15,0.1) 40%, rgba(4,8,15,0.7) 100%);
+    radial-gradient(ellipse 100% 100% at 50% 50%, rgba(4,8,15,0.05) 0%, rgba(4,8,15,0.68) 80%),
+    linear-gradient(180deg, rgba(4,8,15,0.4) 0%, rgba(4,8,15,0.05) 45%, rgba(4,8,15,0.55) 100%);
 }
 #lab-bg-grain {
   position: absolute;
@@ -177,9 +177,9 @@ body.kuromi #lab-bg { opacity: 0; pointer-events: none; }
   pointer-events: none;
 }
 /* canvas on top of lab bg */
-#lab-bg ~ .bg-layer #bg-canvas {
+#bg-canvas {
   mix-blend-mode: screen;
-  opacity: 0.75;
+  opacity: 0.8;
 }
 
 
@@ -857,7 +857,7 @@ select option{background:#0c1624}
 // ═══════════════════════════════════════════
 //  DATABASE (IndexedDB)
 // ═══════════════════════════════════════════
-const DB_NAME='mylab_v1', DB_VER=1;
+const DB_NAME='mylab_v1', DB_VER=2;
 const STORES=['items','tasks','ideas','subjects'];
 let db=null;
 
@@ -893,6 +893,7 @@ function esc(s){const d=document.createElement('div');d.textContent=s||'';return
 //  INIT
 // ═══════════════════════════════════════════
 async function init(){
+  try {
   await openDB();
   const [items,tasks,ideas,subjects]=await Promise.all(STORES.map(dbGetAll));
   S.items=items;S.tasks=tasks;S.ideas=ideas;S.subjects=subjects;
@@ -941,6 +942,12 @@ async function init(){
   initIDE();
   initPlayground();
   initNotes();
+  } catch(e) {
+    console.error('Init error:', e);
+    // Still try to render even if DB fails
+    setGreeting();
+    renderAll();
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -986,15 +993,17 @@ function renderSection(n){
 }
 
 function renderStats(){
+  const el = document.getElementById('stats-row');
+  if(!el) return;
   const tot=S.items.length,done=S.items.filter(i=>i.done).length,
         rem=S.tasks.filter(t=>!t.done).length,idC=S.ideas.length;
-  document.getElementById('stats-row').innerHTML=
-    sc('⬡',tot,'Items')+sc('✓',done,'Done')+sc('◷',tot-done,'Active')+sc('▤',rem,'Tasks')+sc('✦',idC,'Ideas');
+  el.innerHTML = sc('⬡',tot,'Items')+sc('✓',done,'Done')+sc('◷',tot-done,'Active')+sc('▤',rem,'Tasks')+sc('✦',idC,'Ideas');
 }
 function sc(e,n,l){return `<div class="stat-card glass"><div class="stat-e">${e}</div><div class="stat-n">${n}</div><div class="stat-l">${l}</div></div>`;}
 
 function renderHomeTasks(){
   const el=document.getElementById('home-tasks');
+  if(!el) return;
   const t=S.tasks.filter(t=>!t.done).slice(0,5);
   el.innerHTML=t.length?t.map(t=>taskHTML(t,true)).join(''):`<div class="empty"><div class="empty-e">✓</div><div class="empty-t">All done!</div></div>`;
 }
@@ -1003,12 +1012,14 @@ function renderHomeRepos(){
 }
 function renderTasks(){
   const el=document.getElementById('tasks-list');
+  if(!el) return;
   el.innerHTML=S.tasks.length?S.tasks.map(t=>taskHTML(t)).join(''):`<div class="empty"><div class="empty-e">◷</div><div class="empty-t">No tasks yet</div><div class="empty-s">Add something above!</div></div>`;
   document.getElementById('cnt-tasks').textContent=S.tasks.filter(t=>!t.done).length+' remaining';
 }
 function taskHTML(t,mini=false){return `<div class="task-item glass ${t.done?'done':''}" id="ti-${t.id}"><div class="task-chk" onclick="toggleTask('${t.id}')">${t.done?'✓':''}</div><span class="task-nm">${esc(t.name)}</span>${!mini?`<button class="task-del" onclick="delTask('${t.id}')">✕</button>`:''}</div>`;}
 function renderIdeas(){
   const el=document.getElementById('ideas-grid');
+  if(!el) return;
   el.innerHTML=S.ideas.length?S.ideas.map(i=>`<div class="idea-card glass ${i.starred?'starred':''}" id="ii-${i.id}"><button class="idea-star" onclick="starIdea('${i.id}')">⭐</button><div class="idea-txt">${esc(i.text)}</div><div class="idea-date">${i.date}</div><button class="idea-del" onclick="delIdea('${i.id}')">✕</button></div>`).join(''):`<div class="empty"><div class="empty-e">✦</div><div class="empty-t">Empty! Dump your thoughts</div></div>`;
   document.getElementById('cnt-ideas').textContent=S.ideas.length+' ideas';
 }
@@ -1019,6 +1030,7 @@ const PRIO_L={high:'▲ high',med:'— med',low:'▽ low'};
 
 function renderCards(type,filter){
   const el=document.getElementById('grid-'+type);
+  if(!el) return;
   let items=S.items.filter(i=>i.type===type);
   if(filter==='active') items=items.filter(i=>!i.done);
   if(filter==='done') items=items.filter(i=>i.done);
@@ -1035,16 +1047,19 @@ function filt(type,filter,el){
 
 function renderSubjects(){
   const el=document.getElementById('grid-subjects');
+  if(!el) return;
   if(!S.subjects.length){el.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-e">△</div><div class="empty-t">No subjects yet</div></div>`;return;}
   el.innerHTML=S.subjects.map(s=>`<div class="sub-card glass" id="si-${s.id}"><div class="sub-head"><span class="sub-e">${s.emoji||'△'}</span><div><div class="sub-t">${esc(s.name)}</div><div style="font-family:JetBrains Mono,monospace;font-size:10px;color:var(--a)">${s.progress||0}%</div></div></div><div class="sub-prog-bar"><div class="sub-prog-fill" style="width:${s.progress||0}%"></div></div><div class="sub-body">${s.notes?`<div class="sub-notes">${esc(s.notes)}</div>`:''}<div class="sub-topics">${(s.topics||[]).map((t,ti)=>`<span class="topic ${t.done?'done-t':''}" onclick="toggleTopic('${s.id}',${ti})">${t.done?'✓ ':''}${esc(t.name)}</span>`).join('')}</div></div><div class="sub-foot"><button class="sub-btn" onclick="bumpProg('${s.id}')">+10%</button><button class="sub-btn del-b" onclick="delSubject('${s.id}')">Remove</button></div></div>`).join('');
 }
 
 function updateBadges(){
+  try {
   document.getElementById('nb-tasks').textContent=S.tasks.filter(t=>!t.done).length;
   document.getElementById('nb-ideas').textContent=S.ideas.length;
   document.getElementById('nb-math').textContent=S.items.filter(i=>i.type==='math'&&!i.done).length;
   document.getElementById('nb-code').textContent=S.items.filter(i=>i.type==='code'&&!i.done).length;
   document.getElementById('nb-books').textContent=S.items.filter(i=>i.type==='books'&&!i.done).length;
+  } catch(e){}
 }
 
 // ═══════════════════════════════════════════
@@ -2465,7 +2480,12 @@ async function importData(input) {
 // Close modal on overlay click
 document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 
-init();
+// Boot when DOM is ready
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 </script>
 
 <!-- PWA HOW-TO MODAL -->
